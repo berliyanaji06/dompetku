@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DompetKu - Catat, Atur, Hemat</title>
+<style>
+:root{--bg:#f4faf7;--card:#fff;--tx:#17302a;--mu:#5f7a72;--pr:#0f9d77;--in:#0f9d77;--out:#e0533d;--bd:#dcece6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1a16;--card:#14261f;--tx:#e6f4ee;--mu:#93b0a5;--pr:#2dd4a3;--in:#2dd4a3;--out:#ff7a63;--bd:#223a31}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx)}
+header{background:linear-gradient(135deg,#fff,#c9f1e3);padding:20px 16px;color:#0b4636;border-bottom:1px solid var(--bd)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) header{background:linear-gradient(135deg,#14261f,#14463a);color:#e6f4ee}}
+header h1{margin:0;font-size:1.5rem}header p{margin:3px 0 0;opacity:.8}
+main{max-width:760px;margin:0 auto;padding:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(15,157,119,.07)}
+h2{margin:0 0 10px;font-size:1.05rem}
+.saldo{font-size:2rem;font-weight:800}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.mini{border-radius:10px;padding:10px;background:var(--bg)}.mini b{display:block;font-size:1.05rem}
+.in{color:var(--in)}.out{color:var(--out)}.mu{color:var(--mu);font-size:.85rem}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end}
+label{font-size:.8rem;color:var(--mu);display:block;margin-bottom:3px}
+input,select{font:inherit;width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)}
+button{font:inherit;padding:9px 12px;border:0;border-radius:8px;background:var(--pr);color:#fff;font-weight:600;cursor:pointer}
+button.l{background:transparent;color:var(--out);padding:2px 6px}
+.bar{height:10px;background:var(--bg);border-radius:99px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--pr)}
+.bar i.w{background:#e5a012}.bar i.d{background:var(--out)}
+.item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd)}
+.item:last-child{border:0}
+.alert{padding:10px;border-radius:10px;background:#fef3c7;color:#92400e;font-size:.9rem;margin-top:8px}
+.alert.d{background:#fee2e2;color:#991b1b}
+</style>
+</head>
+<body>
+<header><h1>DompetKu</h1><p>Catat. Atur. Hemat. Keuangan rapi untuk semua orang.</p></header>
+<main>
+<div class="card"><div class="mu" id="bln"></div><div class="mu">Saldo keseluruhan</div><div class="saldo" id="saldo"></div>
+<div class="row"><div class="mini"><span class="mu">Pemasukan bulan ini</span><b class="in" id="si"></b></div><div class="mini"><span class="mu">Pengeluaran bulan ini</span><b class="out" id="so"></b></div></div></div>
+
+<div class="card"><h2>Tambah Transaksi</h2>
+<div class="g">
+<div><label>Jenis</label><select id="jn" onchange="kat()"><option value="out">Pengeluaran</option><option value="in">Pemasukan</option></select></div>
+<div><label>Kategori</label><select id="kt"></select></div>
+<div><label>Jumlah (Rp)</label><input id="jm" type="number" min="1" inputmode="numeric"></div>
+<div><label>Tanggal</label><input id="tg" type="date"></div>
+<div><label>Catatan</label><input id="ct" placeholder="opsional"></div>
+<button onclick="tambah()">Simpan</button></div></div>
+
+<div class="card"><h2>Anggaran Bulanan</h2>
+<div class="g"><div><label>Batas pengeluaran bulan ini (Rp)</label><input id="bt" type="number" min="0" inputmode="numeric" onchange="setB()"></div></div>
+<div id="agr"></div></div>
+
+<div class="card"><h2>Pengeluaran per Kategori (bulan ini)</h2><div id="kb"></div></div>
+
+<div class="card"><h2>Riwayat Transaksi</h2><div id="rw"></div>
+<div style="margin-top:10px"><button class="l" onclick="reset()">Hapus semua data</button></div></div>
+</main>
+<script>
+var KO=["Makan & Minum","Transportasi","Belanja","Tagihan","Kesehatan","Hiburan","Pendidikan","Lainnya"],KI=["Gaji","Usaha","Hadiah","Lainnya"];
+var T=[],B=0,N=new Date().toISOString().slice(0,10),M=N.slice(0,7);
+function $(i){return document.getElementById(i)}
+function rp(n){return"Rp "+Math.round(n).toLocaleString("id-ID")}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function load(){try{var a=localStorage.getItem("dk_t"),b=localStorage.getItem("dk_b");if(a)T=JSON.parse(a);if(b)B=+b}catch(e){}
+if(!T.length&&!localStorage.getItem("dk_t")){T=[{id:1,j:"in",k:"Gaji",m:3500000,d:M+"-01",c:"Gaji bulanan"},{id:2,j:"out",k:"Makan & Minum",m:450000,d:M+"-03",c:"Belanja mingguan"},{id:3,j:"out",k:"Tagihan",m:300000,d:M+"-05",c:"Listrik & internet"},{id:4,j:"out",k:"Transportasi",m:150000,d:M+"-07",c:"Bensin"}];B=2000000}}
+function save(){try{localStorage.setItem("dk_t",JSON.stringify(T));localStorage.setItem("dk_b",B)}catch(e){}}
+function kat(){var l=$("jn").value==="in"?KI:KO;$("kt").innerHTML=l.map(function(x){return"<option>"+esc(x)+"</option>"}).join("")}
+function tambah(){var m=parseInt($("jm").value);if(!m||m<=0){alert("Isi jumlah dengan angka lebih dari 0.");return}
+T.push({id:Date.now(),j:$("jn").value,k:$("kt").value,m:m,d:$("tg").value||N,c:$("ct").value.trim()});
+$("jm").value="";$("ct").value="";save();draw()}
+function hapus(id){T=T.filter(function(x){return x.id!==id});save();draw()}
+function setB(){B=Math.max(0,parseInt($("bt").value)||0);save();draw()}
+function reset(){if(confirm("Hapus semua data transaksi dan anggaran?")){T=[];B=0;save();draw()}}
+function draw(){var all=0,si=0,so=0,per={};
+T.forEach(function(x){var v=x.j==="in"?x.m:-x.m;all+=v;if(x.d.slice(0,7)===M){if(x.j==="in")si+=x.m;else{so+=x.m;per[x.k]=(per[x.k]||0)+x.m}}});
+$("bln").textContent=new Date().toLocaleDateString("id-ID",{month:"long",year:"numeric"});
+$("saldo").textContent=rp(all);$("saldo").className="saldo "+(all<0?"out":"");$("si").textContent=rp(si);$("so").textContent=rp(so);$("bt").value=B||"";
+var h="";if(B>0){var p=so/B*100,c=p>=100?"d":p>=80?"w":"";h='<div class="bar"><i class="'+c+'" style="width:'+Math.min(p,100)+'%"></i></div><span class="mu">Terpakai '+rp(so)+' dari '+rp(B)+' ('+Math.round(p)+'%)</span>';
+if(p>=100)h+='<div class="alert d">Anggaran bulan ini sudah terlampaui '+rp(so-B)+'.</div>';else if(p>=80)h+='<div class="alert">Hati-hati, pengeluaran sudah mencapai '+Math.round(p)+'% dari anggaran. Sisa '+rp(B-so)+'.</div>'}
+else h='<p class="mu">Isi batas anggaran agar pengeluaran bisa dipantau.</p>';$("agr").innerHTML=h;
+var ks=Object.keys(per).sort(function(a,b){return per[b]-per[a]});
+$("kb").innerHTML=ks.length?ks.map(function(k){var pc=per[k]/so*100;return'<div><div style="display:flex;justify-content:space-between"><span>'+esc(k)+'</span><span class="mu">'+rp(per[k])+' · '+Math.round(pc)+'%</span></div><div class="bar"><i style="width:'+pc+'%"></i></div></div>'}).join(""):'<p class="mu">Belum ada pengeluaran bulan ini.</p>';
+var s=T.slice().sort(function(a,b){return b.d.localeCompare(a.d)||b.id-a.id});
+$("rw").innerHTML=s.length?s.map(function(x){return'<div class="item"><div><b>'+esc(x.k)+'</b><div class="mu">'+esc(x.d)+(x.c?" · "+esc(x.c):"")+'</div></div><div style="text-align:right"><b class="'+x.j+'">'+(x.j==="in"?"+":"-")+rp(x.m)+'</b><br><button class="l" onclick="hapus('+x.id+')">hapus</button></div></div>'}).join(""):'<p class="mu">Belum ada transaksi.</p>'}
+load();$("tg").value=N;kat();draw();
+</script>
+</body>
+</html>
